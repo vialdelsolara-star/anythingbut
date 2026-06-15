@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Flipbook PDF</title>
+<title>Magazine Flipbook PRO MAX</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/page-flip/dist/js/page-flip.browser.min.js"></script>
@@ -10,15 +10,50 @@
 <style>
 html,body{
     margin:0;
-    width:100%;
     height:100%;
-    background:#111;
     overflow:hidden;
+    background:#111;
 }
 
-#flipbook{
+/* layout */
+#app{
+    display:flex;
     width:100vw;
     height:100vh;
+}
+
+/* thumbnails sidebar */
+#thumbs{
+    width:120px;
+    background:#1a1a1a;
+    overflow-y:auto;
+    padding:10px;
+}
+
+.thumb{
+    width:100%;
+    margin-bottom:10px;
+    cursor:pointer;
+    border:2px solid transparent;
+    transition:0.2s;
+}
+
+.thumb:hover{
+    border-color:#666;
+}
+
+/* viewer */
+#viewer{
+    flex:1;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+}
+
+/* flipbook */
+#flipbook{
+    width:100%;
+    height:100%;
 }
 
 .page{
@@ -26,6 +61,7 @@ html,body{
     display:flex;
     justify-content:center;
     align-items:center;
+    overflow:hidden;
 }
 
 .page canvas{
@@ -35,25 +71,80 @@ html,body{
 }
 </style>
 </head>
+
 <body>
 
-<div id="flipbook"></div>
+<div id="app">
+    <div id="thumbs"></div>
+    <div id="viewer">
+        <div id="flipbook"></div>
+    </div>
+</div>
 
 <script>
 
 const pdfUrl = "anything_but_magazine.pdf";
 
+let flipbook;
+let scale = 1;
+let pdfDoc;
+
+// 🔥 FULLSCREEN
+function toggleFullscreen(){
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+    } else {
+        document.exitFullscreen();
+    }
+}
+
+// 🔥 ZOOM SIMPLE (wheel)
+let zoom = 1;
+
+function applyZoom(){
+    document.querySelectorAll(".page canvas").forEach(c=>{
+        c.style.transform = `scale(${zoom})`;
+        c.style.transformOrigin = "center";
+    });
+}
+
+window.addEventListener("wheel",(e)=>{
+    if(e.ctrlKey){
+        zoom += (e.deltaY * -0.001);
+        zoom = Math.min(Math.max(0.5, zoom), 2.5);
+        applyZoom();
+    }
+});
+
+// 🔥 KEYBOARD NAV
+window.addEventListener("keydown",(e)=>{
+    if(!flipbook) return;
+
+    if(e.key === "ArrowRight") flipbook.flipNext();
+    if(e.key === "ArrowLeft") flipbook.flipPrev();
+    if(e.key.toLowerCase() === "f") toggleFullscreen();
+});
+
 (async()=>{
 
-    const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
+    pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
 
     const container = document.getElementById("flipbook");
+    const thumbs = document.getElementById("thumbs");
 
-    // 1. Render PDF pages as DOM elements
-    for(let i=1;i<=pdf.numPages;i++){
+    const firstPage = await pdfDoc.getPage(1);
+    const view = firstPage.getViewport({scale:1});
 
-        const page = await pdf.getPage(i);
-        const viewport = page.getViewport({ scale: 1.5 });
+    const baseScale = Math.min(
+        window.innerWidth / view.width,
+        window.innerHeight / view.height
+    ) * 0.95;
+
+    // 🔥 render pages + thumbnails
+    for(let i=1;i<=pdfDoc.numPages;i++){
+
+        const page = await pdfDoc.getPage(i);
+        const viewport = page.getViewport({scale: baseScale});
 
         const wrapper = document.createElement("div");
         wrapper.className = "page";
@@ -69,21 +160,64 @@ const pdfUrl = "anything_but_magazine.pdf";
 
         wrapper.appendChild(canvas);
         container.appendChild(wrapper);
+
+        // thumbnail
+        const thumb = document.createElement("canvas");
+        const tctx = thumb.getContext("2d");
+
+        const tscale = 0.2;
+        const tview = page.getViewport({scale: tscale});
+
+        thumb.width = tview.width;
+        thumb.height = tview.height;
+
+        await page.render({
+            canvasContext: tctx,
+            viewport: tview
+        }).promise;
+
+        thumb.className = "thumb";
+
+        thumb.onclick = () => {
+            flipbook.flip(i-1);
+        };
+
+        thumbs.appendChild(thumb);
     }
 
-    // 2. Init flipbook AFTER pages exist
-    const flipbook = new PageFlip(container, {
-        width: 500,
-        height: 700,
+    // 🔥 INIT FLIPBOOK PRO
+    flipbook = new PageFlip(container, {
+
+        width: window.innerWidth * 0.7,
+        height: window.innerHeight,
+
         size: "stretch",
-        autoSize: true,
         showCover: true,
-        usePortrait: true,
-        mobileScrollSupport: false,
-        maxShadowOpacity: 0.25
+
+        minWidth: 300,
+        maxWidth: 2000,
+        minHeight: 400,
+        maxHeight: 3000,
+
+        drawShadow: true,
+        flippingTime: 800,
+        useMouseEvents: true,
+        swipeDistance: 30,
+        maxShadowOpacity: 0.5,
+
+        mobileScrollSupport: false
     });
 
     flipbook.loadFromHTML(document.querySelectorAll(".page"));
+
+    // sync page highlight
+    flipbook.on("flip", (e)=>{
+        console.log("Página:", e.data + 1);
+    });
+
+    window.addEventListener("resize", ()=>{
+        flipbook.update();
+    });
 
 })();
 
