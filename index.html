@@ -1,55 +1,88 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ANYTHING BUT — Flipbook</title>
+<meta charset="UTF-8">
+<title>ANYTHING BUT</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/page-flip/dist/js/page-flip.browser.min.js"></script>
+
 <style>
-html,body{margin:0;height:100%;background:#000;font-family:Arial,sans-serif;overflow:hidden}
-#app{width:100vw;height:100vh;display:flex;justify-content:center;align-items:center}
-#flipbook{width:1400px;height:900px;}
-.page{background:white;display:flex;justify-content:center;align-items:center;overflow:hidden}
-.page canvas{width:100%;height:100%;object-fit:contain}
+html,body{
+  margin:0;
+  height:100%;
+  background:#111;
+}
+
+#flipbook{
+  width:100vw;
+  height:100vh;
+}
+
+.page{
+  background:white;
+}
 </style>
 </head>
 <body>
-<div id="app"><div id="flipbook"></div></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.min.mjs" type="module"></script>
-<script type="module">
-import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.min.mjs';
-import { PageFlip } from 'https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.module.js';
+<div id="flipbook"></div>
 
-pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.worker.min.mjs';
+<script>
 
-const pdf = await pdfjsLib.getDocument('anything_but_magazine.pdf').promise;
-const container = document.getElementById('flipbook');
+const pdfUrl = "anything_but_magazine.pdf";
 
-for(let i=1;i<=pdf.numPages;i++){
- const page = await pdf.getPage(i);
- const viewport = page.getViewport({scale:2});
- const canvas=document.createElement('canvas');
- canvas.width=viewport.width;
- canvas.height=viewport.height;
- await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
- const div=document.createElement('div');
- div.className='page';
- div.appendChild(canvas);
- container.appendChild(div);
-}
+pdfjsLib.getDocument(pdfUrl).promise.then(async(pdf)=>{
 
-const flipbook = new PageFlip(container,{
- width:700,
- height:900,
- size:'stretch',
- minWidth:315,
- maxWidth:1600,
- minHeight:420,
- maxHeight:2200,
- showCover:true,
- mobileScrollSupport:true
+    const pages=[];
+
+    for(let i=1;i<=pdf.numPages;i++){
+
+        const page = await pdf.getPage(i);
+
+        const viewport = page.getViewport({scale:2});
+
+        const canvas=document.createElement("canvas");
+        const ctx=canvas.getContext("2d");
+
+        canvas.width=viewport.width;
+        canvas.height=viewport.height;
+
+        await page.render({
+            canvasContext:ctx,
+            viewport
+        }).promise;
+
+        const div=document.createElement("div");
+        div.className="page";
+
+        const img=document.createElement("img");
+        img.src=canvas.toDataURL();
+
+        img.style.width="100%";
+        img.style.height="100%";
+        img.style.objectFit="contain";
+
+        div.appendChild(img);
+
+        pages.push(div);
+    }
+
+    const flipbook=new St.PageFlip(
+        document.getElementById("flipbook"),
+        {
+            width:900,
+            height:1200,
+            size:"stretch",
+            showCover:true
+        }
+    );
+
+    flipbook.loadFromHTML(pages);
+
 });
-flipbook.loadFromHTML(document.querySelectorAll('.page'));
+
 </script>
+
 </body>
 </html>
