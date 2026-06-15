@@ -2,29 +2,42 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>PDF Test</title>
+<title>ANYTHING BUT</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/page-flip/dist/js/page-flip.browser.min.js"></script>
 
 <style>
-body{
+html,body{
     margin:0;
+    width:100%;
+    height:100%;
     background:#111;
+    overflow:hidden;
+}
+
+#flipbook{
+    width:100vw;
+    height:100vh;
+}
+
+.page{
+    background:white;
     display:flex;
     justify-content:center;
     align-items:center;
-    min-height:100vh;
 }
 
-canvas{
-    max-width:90vw;
-    max-height:90vh;
+.page canvas{
+    width:100%;
+    height:100%;
+    object-fit:contain;
 }
 </style>
 </head>
 <body>
 
-<canvas id="pdf-canvas"></canvas>
+<div id="flipbook"></div>
 
 <script>
 
@@ -34,21 +47,54 @@ const pdfUrl = "anything_but_magazine.pdf";
 
     const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
 
-    const page = await pdf.getPage(1);
+    // Tomamos la primera página para calcular el tamaño real
+    const firstPage = await pdf.getPage(1);
+    const firstViewport = firstPage.getViewport({scale:1.5});
 
-    const viewport = page.getViewport({scale:2});
+    const flipbook = new St.PageFlip(
+        document.getElementById("flipbook"),
+        {
+            width:firstViewport.width,
+            height:firstViewport.height,
+            size:"stretch",
+            autoSize:true,
+            showCover:true,
+            usePortrait:true,
+            mobileScrollSupport:false,
+            maxShadowOpacity:0.25
+        }
+    );
 
-    const canvas = document.getElementById("pdf-canvas");
+    const pages = [];
 
-    const ctx = canvas.getContext("2d");
+    // Cargamos páginas
+    for(let i=1;i<=pdf.numPages;i++){
 
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
+        const page = await pdf.getPage(i);
 
-    await page.render({
-        canvasContext:ctx,
-        viewport:viewport
-    }).promise;
+        const viewport = page.getViewport({
+            scale:1.5
+        });
+
+        const wrapper = document.createElement("div");
+        wrapper.className = "page";
+
+        const canvas = document.createElement("canvas");
+
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        await page.render({
+            canvasContext:canvas.getContext("2d"),
+            viewport:viewport
+        }).promise;
+
+        wrapper.appendChild(canvas);
+
+        pages.push(wrapper);
+    }
+
+    flipbook.loadFromHTML(pages);
 
 })();
 
