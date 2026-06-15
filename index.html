@@ -22,7 +22,7 @@ import { PageFlip } from 'https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/p
 
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.worker.min.mjs';
 
-const pdf = await pdfjsLib.getDocument('magazine.pdf').promise;
+const pdf = await pdfjsLib.getDocument('anything_but_magazine.pdf').promise;
 const container = document.getElementById('flipbook');
 
 for(let i=1;i<=pdf.numPages;i++){
